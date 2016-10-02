@@ -32,6 +32,7 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
+import collections
 import datetime
 import HTMLParser
 import logging
@@ -288,6 +289,21 @@ class ScraperAllRis(object):
                % (self.config['scraper']['base_url'], person_id))
 
         logging.info("Getting person organization from %s", url)
+        # maps name of type to form name and membership type
+        membership = collections.namedtuple('Membership', ('mtype', 'field'))
+        membership_map = {
+            u'Rat der Stadt' : membership('parliament', 'PALFDNR'),
+            u'Parlament' : membership('parliament', 'PALFDNR'),
+            u'Bürgerschaft' : membership('parliament', 'PALFDNR'),
+            u'Fraktion' : membership('organisation', 'FRLFDNR'),
+            u'Fraktionen': membership('parliament', 'FRLFDNR'),
+            u'Ausschüsse' : membership('organization', 'AULFDNR'),
+            u'Stadtbezirk': membership('parliament', 'PALFDNR'),
+            u'BVV': membership('parliament', 'PALFDNR'),
+            u'Bezirksparlament': membership('parliament', 'PALFDNR'),
+            u'Bezirksverordnetenversammlung': membership('parliament',
+                                                         'PALFDNR'),
+        }
         # Stupid re-try concept because AllRis sometimes misses start < at
         # tags at first request.
         try_counter = 0
@@ -300,25 +316,6 @@ class ScraperAllRis(object):
 
                 memberships = []
                 person = Person(originalId=person_id)
-                # maps name of type to form name and membership type
-                type_map = {
-                    u'Rat der Stadt' : {'mtype' : 'parliament',
-                                        'field' : 'PALFDNR'},
-                    u'Parlament' : {'mtype' : 'parliament',
-                                    'field' : 'PALFDNR'},
-                    u'Fraktion' : {'mtype' : 'organisation',
-                                   'field' : 'FRLFDNR'},
-                    'Fraktionen': {'mtype' : 'parliament', 'field' : 'FRLFDNR'},
-                    u'Ausschüsse' : {'mtype' : 'organization',
-                                     'field' : 'AULFDNR'},
-                    'Stadtbezirk': {'mtype' : 'parliament',
-                                    'field' : 'PALFDNR'},
-                    'BVV': {'mtype' : 'parliament', 'field' : 'PALFDNR'},
-                    'Bezirksparlament': {'mtype' : 'parliament',
-                                         'field' : 'PALFDNR'},
-                    'Bezirksverordnetenversammlung': {'mtype' : 'parliament',
-                                                      'field' : 'PALFDNR'}
-                }
 
                 # obtain the table with the membership list via a simple state machine
                 mtype = "parliament"
@@ -337,9 +334,9 @@ class ScraperAllRis(object):
                             what = line[0].text.strip()
                             field = None
                             field_list = None
-                            if what in type_map:
-                                mtype = type_map[what]['mtype']
-                                field = type_map[what]['field']
+                            if what in membership_map:
+                                mtype = membership_map[what]['mtype']
+                                field = membership_map[what]['field']
                             elif 'Wahlperiode' in what:
                                 mtype = 'parliament'
                                 # 'FRLFDNR'
