@@ -76,42 +76,47 @@ def main():
                               'if --start is given, otherwise it is off by '
                               'default.'))
     # date
-    parser.add_argument('--start', dest="start_month", default=False,
+    parser.add_argument('--start', dest="start_month", default=None,
                         help=('Find sessions and related content starting in '
                               'this month. Format: "YYYY-MM". When this is '
                               'used, the -q parameter is implied.'))
-    parser.add_argument('--end', dest="end_month", default=False,
+    parser.add_argument('--end', dest="end_month", default=None,
                         help=('Find sessions and related content up to this '
                               'month. Requires --start parameter to be set, '
                               'too. Format: "YYYY-MM"'))
     # organization
-    parser.add_argument('--organizationid', dest="organization_id",
-                        default=False, help='Scrape a specific organization, '
-                                            'identified by its numeric ID')
-    parser.add_argument('--organizationurl', dest="organization_url",
-                        default=False, help='Scrape a specific organization, '
-                                            'identified by its detail page URL')
+    parser.add_argument('--organizationid', dest="organization_ids", type=int,
+                        action='append', default=[],
+                        help='Scrape a specific organization, identified by '
+                             'its numeric ID')
+    parser.add_argument('--organizationurl', dest="organization_urls",
+                        action='append', default=[],
+                        help='Scrape a specific organization, identified by '
+                             'its detail page URL')
     # person
-    parser.add_argument('--personid', dest="person_id", default=False,
+    parser.add_argument('--personid', dest="person_ids", action='append',
+                        type=int, default=[],
                         help='Scrape a specific person, identified by its '
                              'numeric ID')
-    parser.add_argument('--personurl', dest="person_url", default=False,
-                        help='Scrape a specific person, identified by its '
-                             'detail page URL')
+    parser.add_argument('--personurl', dest="person_urls", action='append',
+                        default=[], help='Scrape a specific person, '
+                                         'identified by its detail page URL')
     # meeting
-    parser.add_argument('--meetingid', dest="meeting_id", default=False,
+    parser.add_argument('--meetingid', dest="meeting_ids", action='append',
+                        type=int, default=[],
                         help='Scrape a specific meeting, identified by its '
                              'numeric ID')
-    parser.add_argument('--meetingurl', dest="meeting_url", default=False,
-                        help='Scrape a specific meeting, identified by its '
-                             'detail page URL')
+    parser.add_argument('--meetingurl', dest="meeting_urls", action='append',
+                        default=[], help='Scrape a specific meeting, '
+                                         'identified by its detail page URL')
     # paper
-    parser.add_argument('--paperid', dest="paper_id", default=False,
+    parser.add_argument('--paperid', dest="paper_ids", action='append',
+                        type=int, default=[],
                         help='Scrape a specific paper, identified by its '
                              'numeric ID')
-    parser.add_argument('--paperurl', dest="paper_url", default=False,
-                        help='Scrape a specific paper, identified by its '
-                             'detail page URL')
+    parser.add_argument('--paperurl', dest="paper_urls", action='append',
+                        default=[], help='Scrape a specific paper, identified '
+                                         'by its detail page URL')
 
     parser.add_argument('--erase', dest="erase_db", action="store_true",
                         default=False, help='Erase all database content '
@@ -205,32 +210,31 @@ def main():
 
     scraper.guess_system()
     # person
-    if options.person_id:
+    for person_id in options.person_ids:
         #scraper.find_person() #should be part of scraper
-        #scraper.get_person(person_id=int(options.person_id))
+        #scraper.get_person(person_id=int(person_id))
         # should be part of scraper
-        scraper.get_person_organization(person_id=int(options.person_id))
-    if options.person_url:
+        scraper.get_person_organization(person_id=person_id)
+    for person_url in options.person_urls:
         #scraper.find_person() #should be part of scraper
-        #scraper.get_person(person_url=options.person_url)
+        #scraper.get_person(person_url=person_url)
         # should be part of scraper
-        scraper.get_person_organization(person_url=options.person_url)
+        scraper.get_person_organization(person_url=person_url)
     # organization
-    if options.organization_id:
-        scraper.get_organization(organization_id=int(options.organization_id))
-    if options.organization_url:
-        scraper.get_organization(organization_url=options.organization_url)
+    for organization_id in options.organization_ids:
+        scraper.get_organization(organization_id=organization_id)
+    for organization_url in options.organization_urls:
+        scraper.get_organization(organization_url=organization_url)
     # meeting
-    if options.meeting_id:
-        scraper.get_meeting(meeting_id=int(options.meeting_id))
-    if options.meeting_url:
-        scraper.get_meeting(meeting_url=options.meeting_url)
+    for meeting_id in options.meeting_ids:
+        scraper.get_meeting(meeting_id=meeting_id)
+    for meeting_url in options.meeting_urls:
+        scraper.get_meeting(meeting_url=meeting_url)
     # paper
-    if options.paper_id:
-        scraper.get_paper(paper_id=int(options.paper_id))
-    if options.paper_url:
-        scraper.get_paper(paper_url=options.paper_url)
-
+    for paper_id in options.paper_ids:
+        scraper.get_paper(paper_id=paper_id)
+    for paper_url in options.paper_urls:
+        scraper.get_paper(paper_url=paper_url)
 
     if options.start_month:
         scraper.find_person()
