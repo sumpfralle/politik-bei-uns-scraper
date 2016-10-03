@@ -42,13 +42,27 @@ import logging
 import re
 import sys
 import time
+try:
+    from urllib.request import build_opener as build_url_opener
+    from urllib.request import HTTPDefaultErrorHandler as http_exception
+except ImportError:
+    # Python2 compatibility
+    from requests.exceptions import ConnectionError as http_exception
+    import requests
+    class build_url_opener(object):
+        def open(self, *args, **kwargs):
+            if kwargs.get("data", None) is None:
+                response = requests.get(*args, **kwargs)
+            else:
+                response = requests.post(*args, **kwargs)
+            return response.text
+        def add_headers(self, headers):
+            pass
 
 from lxml import etree, html
 from lxml.cssselect import CSSSelector
 import magic
-import mechanize
 from pytz import timezone
-import requests
 
 from risscraper.model.person import Person
 from risscraper.model.membership import Membership
@@ -94,10 +108,11 @@ class ScraperAllRis(object):
         self.options = options
         # database object
         self.db = db
-        # mechanize user agent
-        self.user_agent = mechanize.Browser()
-        self.user_agent.set_handle_robots(False)
-        self.user_agent.addheaders = [('User-agent', config['scraper']['user_agent_name'])]
+        # prepare URL retriever
+        self.url_opener = build_url_opener()
+        self.url_opener.addheaders = [
+            ('User-agent', config['scraper']['user_agent_name'])]
+
         # Queues
         if self.options.workfromqueue:
             self.person_queue = risscraper.queue.Queue('ALLRIS_PERSON', config, db)
@@ -107,10 +122,6 @@ class ScraperAllRis(object):
         self.template_system = None
         self.urls = None
         self.xpath = None
-
-        self.user_agent = mechanize.Browser()
-        self.user_agent.set_handle_robots(False)
-        self.user_agent.addheaders = [('User-agent', config['scraper']['user_agent_name'])]
 
     def work_from_queue(self):
         """
@@ -157,7 +168,7 @@ class ScraperAllRis(object):
         r = self.get_url(find_person_url)
         if not r:
             return
-        xml = r.text.encode('ascii', 'xmlcharrefreplace')
+        xml = r.encode('ascii', 'xmlcharrefreplace')
         tree = etree.fromstring(xml, parser=parser)
         h = html_parser.HTMLParser()
 
@@ -249,7 +260,7 @@ class ScraperAllRis(object):
         if not r:
             return
 
-        xml = r.text.encode('ascii', 'xmlcharrefreplace').replace('</a>', '')
+        xml = r.encode('ascii', 'xmlcharrefreplace').replace('</a>', '')
         xml = re.sub(r'<a href="([^"]*)" target="_blank" ?>', r'\1', xml)
         root = etree.fromstring(xml, parser=parser)
         for item in root:
@@ -315,9 +326,10 @@ class ScraperAllRis(object):
         while True:
             try:
                 response = self.get_url(url)
+                # TODO: what is the purpose of this check?
                 if not url:
                     return
-                text = response.text.encode('ascii', 'xmlcharrefreplace')
+                text = response.encode('ascii', 'xmlcharrefreplace')
                 tree = html.fromstring(text)
 
                 memberships = []
@@ -495,6 +507,7 @@ class ScraperAllRis(object):
         if not r:
             return
         # If r.history has an item we have a problem
+        # TODO: handle a redirect
         if len(r.history):
             if r.history[0].status_code == 302:
                 logging.info("Meeting %d from %s seems to be private",
@@ -504,7 +517,7 @@ class ScraperAllRis(object):
                               meeting_id, meeting_url, r.history[0].status_code)
             return
         h = html_parser.HTMLParser()
-        xml = str(r.text.encode('ascii', 'xmlcharrefreplace'))
+        xml = str(r.encode('ascii', 'xmlcharrefreplace'))
         parser = etree.XMLParser(recover=True)
         root = etree.fromstring(xml, parser=parser)
 
@@ -560,12 +573,13 @@ class ScraperAllRis(object):
             if not agendaitem_r:
                 return
 
+            # TODO: handle redirects
             if len(agendaitem_r.history):
                 logging.info("Agenda item %d from %s seems to be private",
                              meeting_id, meeting_url)
             else:
-                agendaitem_xml = agendaitem_r.text.encode('ascii',
-                                                          'xmlcharrefreplace')
+                agendaitem_xml = agendaitem_r.encode('ascii',
+                                                     'xmlcharrefreplace')
                 # TODO: mixup of agendaitem_parser / parser below?
                 agendaitem_parser = etree.XMLParser(recover=True)
                 agendaitem_root = etree.fromstring(agendaitem_xml,
@@ -631,11 +645,12 @@ class ScraperAllRis(object):
                 response = self.get_url(paper_url)
                 if not response:
                     return
+                # TODO: handle redirects
                 if "noauth" in response.url:
                     logging.warn("Paper %s in %s seems to private",
                                  paper_id, paper_url)
                     return
-                text = response.text.encode('ascii', 'xmlcharrefreplace')
+                text = response.encode('ascii', 'xmlcharrefreplace')
                 doc = html.fromstring(text)
                 data = {}
 
@@ -890,9 +905,7 @@ class ScraperAllRis(object):
     def get_file(self, file_obj, file_url, post=False):
         """
         Loads the file file from the server and stores it into
-        the file object given as a parameter. The form
-        parameter is the mechanize Form to be submitted for downloading
-        the file.
+        the file object given as a parameter.
 
         The file parameter has to be an object of type
         model.file.File.
@@ -944,12 +957,9 @@ class ScraperAllRis(object):
         while retry_counter < 4:
             retry = False
             try:
-                if post_data is not None:
-                    response = requests.post(url, post_data)
-                else:
-                    response = requests.get(url)
-                return response
-            except requests.exceptions.ConnectionError:
+                # urllib will create a POST request if "data" is not None
+                return self.url_opener.open(url, data=post_data)
+            except http_exception:
                 retry_counter += 1
                 retry = True
                 logging.info("Connection Reset while getting %s, try again",

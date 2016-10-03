@@ -35,12 +35,21 @@ import logging
 from StringIO import StringIO
 import time
 import sys
-import urllib2
 
 from lxml import etree
 import magic
-import mechanize
 import parse
+try:
+    from urllib.request import build_opener as build_url_opener
+    from urllib.request import HTTPDefaultErrorHandler as http_exception
+    # TODO: find a replacement for mechanize in python3
+    print("WARNING: The scraper 'sessionnet' still depends on "
+          "'mechanize'. Thus it cannot be used with Python3 for now.")
+except ImportError:
+    # Python2 compatibility
+    from mechanize import Browser as build_url_opener
+    from requests.exceptions import ConnectionError as http_exception
+
 from risscraper.model.person import Person
 from risscraper.model.membership import Membership
 from risscraper.model.organization import Organization
@@ -61,11 +70,10 @@ class ScraperSessionNet(object):
         self.options = options
         # database object
         self.db = db
-        # mechanize user agent
-        self.user_agent = mechanize.Browser()
-        self.user_agent.set_handle_robots(False)
-        self.user_agent.addheaders = [('User-agent',
-                                       config['scraper']['user_agent_name'])]
+        # prepare URL retriever
+        self.url_opener = build_url_openner()
+        self.url_opener.addheaders = [
+            ('User-agent', config['scraper']['user_agent_name'])]
         # Queues
         if self.options.workfromqueue:
             self.person_queue = queue.Queue('SESSIONNET_PERSON', config, db)
@@ -111,8 +119,8 @@ class ScraperSessionNet(object):
         time.sleep(self.config['scraper']['wait_time'])
         # requesting the base URL. This is usually redirected
         #try:
-        #    response = self.user_agent.open(self.config['scraper']['base_url'])
-        #except urllib2.HTTPError, e:
+        #    response = self.get_url(self.config['scraper']['base_url'])
+        #except urllib2.HTTPError as e:
         #    if e.code == 404:
         #        sys.stderr.write("URL not found (HTTP 404) error caught: %s\n"
         #                         % self.config['scraper']['base_url'])
@@ -149,10 +157,7 @@ class ScraperSessionNet(object):
         if not response:
             return
 
-        # seek(0) is necessary to reset response pointer.
-        response.seek(0)
-        html = response.read()
-        html = html.replace('&nbsp;', ' ')
+        html = response.replace('&nbsp;', ' ')
         parser = etree.HTMLParser()
         dom = etree.parse(StringIO(html), parser)
 
@@ -223,10 +228,7 @@ class ScraperSessionNet(object):
         if not response:
             return
 
-        # seek(0) is necessary to reset response pointer.
-        response.seek(0)
-        html = response.read()
-        html = html.replace('&nbsp;', ' ')
+        html = response.replace('&nbsp;', ' ')
         parser = etree.HTMLParser()
         dom = etree.parse(StringIO(html), parser)
 
@@ -266,10 +268,7 @@ class ScraperSessionNet(object):
         if not response:
             return
 
-        # seek(0) is necessary to reset response pointer.
-        response.seek(0)
-        html = response.read()
-        html = html.replace('&nbsp;', ' ')
+        html = response.replace('&nbsp;', ' ')
         parser = etree.HTMLParser()
         dom = etree.parse(StringIO(html), parser)
 
@@ -349,9 +348,8 @@ class ScraperSessionNet(object):
             logging.info("Looking for meetings (sessions) in %04d-%02d at %s",
                          year, month, url)
             time.sleep(self.config['scraper']['wait_time'])
-            response = self.user_agent.open(url)
-            html = response.read()
-            html = html.replace('&nbsp;', ' ')
+            response = self.get_url(url)
+            html = response.replace('&nbsp;', ' ')
             parser = etree.HTMLParser()
             dom = etree.parse(StringIO(html), parser)
             found = 0
@@ -394,10 +392,7 @@ class ScraperSessionNet(object):
         # forms for later document download
         mechanize_forms = mechanize.ParseResponse(response,
                                                   backwards_compat=False)
-        # seek(0) is necessary to reset response pointer.
-        response.seek(0)
-        html = response.read()
-        html = html.replace('&nbsp;', ' ')
+        html = response.replace('&nbsp;', ' ')
         parser = etree.HTMLParser()
         dom = etree.parse(StringIO(html), parser)
         # check for page errors
@@ -770,8 +765,8 @@ class ScraperSessionNet(object):
             try_found = False
             time.sleep(self.config['scraper']['wait_time'])
             try:
-                response = self.user_agent.open(paper_url)
-            except urllib2.HTTPError as e:
+                response = self.url_opener.open(paper_url)
+            except http_exception as e:
                 if e.code == 404:
                     sys.stderr.write("URL not found (HTTP 404) error "
                                      "caught: %s\n" % paper_url)
@@ -792,9 +787,7 @@ class ScraperSessionNet(object):
                 return
             mechanize_forms = mechanize.ParseResponse(response,
                                                       backwards_compat=False)
-            response.seek(0)
-            html = response.read()
-            html = html.replace('&nbsp;', ' ')
+            html = response.replace('&nbsp;', ' ')
             parser = etree.HTMLParser()
             dom = etree.parse(StringIO(html), parser)
             # Hole die Seite noch einmal wenn unbekannter zufällig
@@ -1050,7 +1043,7 @@ class ScraperSessionNet(object):
                 file_obj.mimetype = magic.from_buffer(file_obj.content,
                                                       mime=True)
                 file_obj.filename = self.make_filename(file_obj)
-            except mechanize.HTTPError as e:
+            except http_exception as e:
                 if e.code in (500, 502):
                     retry_counter += 1
                     retry = True
@@ -1096,9 +1089,8 @@ class ScraperSessionNet(object):
         while retry_counter < 4:
             retry = False
             try:
-                response = self.user_agent.open(url)
-                return response
-            except urllib2.HTTPError as e:
+                return self.url_opener.open(url)
+            except http_exception as e:
                 if e.code in (500, 502):
                     retry_counter = retry_counter + 1
                     retry = True
