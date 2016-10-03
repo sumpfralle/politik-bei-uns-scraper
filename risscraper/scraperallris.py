@@ -303,6 +303,12 @@ class ScraperAllRis(object):
             u'Bezirksparlament': membership('parliament', 'PALFDNR'),
             u'Bezirksverordnetenversammlung': membership('parliament',
                                                          'PALFDNR'),
+            u'Ortsbeiräte': membership('organization', 'AULFDNR'),
+            u'Aufsichtsräte': membership('organization', 'AULFDNR'),
+            u'sonstige Gremien': membership('organization', 'AULFDNR'),
+            # At least in Rostock there can be an empty organization type.
+            # see: https://ksd.rostock.de/bi/kp020.asp?KPLFDNR=300&history=true
+            u'': membership('organization', 'AULFDNR'),
         }
         # Stupid re-try concept because AllRis sometimes misses start < at
         # tags at first request.
@@ -340,7 +346,9 @@ class ScraperAllRis(object):
                     table = table[0]
                     for line in table.findall("tr"):
                         if line[0].tag == "th":
-                            what = line[0].text.strip()
+                            # This is a subtitle for the following memberships.
+                            # Carefully look inside - maybe it is empty.
+                            what = (line[0].text or "").strip()
                             field = None
                             field_list = None
                             if what in membership_map:
