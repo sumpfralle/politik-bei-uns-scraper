@@ -508,7 +508,7 @@ class MongoDatabase(object):
         return oid
 
     def slugify(self, identifier):
-        identifier = unicode(identifier)
+        identifier = str(identifier)
         identifier = identifier.replace('/', '-')
         identifier = identifier.replace(' ', '-')
         result = []
@@ -516,7 +516,7 @@ class MongoDatabase(object):
             word = word.encode('translit/long')
             if word:
                 result.append(word)
-        return unicode('-'.join(result))
+        return '-'.join(result)
 
     def queue_status(self):
         """

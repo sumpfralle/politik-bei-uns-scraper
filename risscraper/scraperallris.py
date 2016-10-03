@@ -217,7 +217,7 @@ class ScraperAllRis(object):
                 new_organization = Organization(originalId=person_party,
                                                 name=person_party,
                                                 classification='party')
-                original_id = unicode(person.originalId) + '-' + person_party
+                original_id = '%s-%s' % (person.originalId, person_party)
                 person.membership = [Membership(originalId=original_id,
                                                 organization=new_organization)]
 
@@ -430,8 +430,8 @@ class ScraperAllRis(object):
                                 else:
                                     organization.originalId = old_group_id
                             membership = Membership(organization=organization)
-                            membership.originalId = (unicode(person_id) + '-'
-                                                     + unicode(group_id))
+                            membership.originalId = '%s-%s' % (person_id,
+                                                               group_id)
 
                             # TODO: create a list of roles so we can
                             #       index them somehow
@@ -585,8 +585,8 @@ class ScraperAllRis(object):
 
                 # there are papers with id = 0. we don't need them.
                 if int(elem['volfdnr']):
-                    consult_id = (unicode(agendaitem.originalId)
-                                  + unicode(int(elem['volfdnr'])))
+                    consult_id = '%s-%s' % (agendaitem.originalId,
+                                            elem['volfdnr'])
                     consultation = Consultation(originalId=consult_id)
                     paper_id = int(elem['volfdnr'])
                     if 'voname' in add_agenda_item:
@@ -870,7 +870,6 @@ class ScraperAllRis(object):
                                                 name=name)
                                 aux_file = self.get_file(aux_file, href)
                                 paper.auxiliaryFile.append(aux_file)
-                print paper.auxiliaryFile
                 if not len(paper.auxiliaryFile):
                     del paper.auxiliaryFile
                 oid = self.db.save_paper(paper)

@@ -23,6 +23,11 @@ Synopsis:
 3. MongoDB starten
 4. Konfigurationsdatei config_example.py kopieren zu config.py, config.py anpassen
 
+### Debian / Ubuntu
+
+    >>> sudo apt install python3-lxml python3-pymongo python3-pytest python3-tz python3-cssselect python3-requests
+    >>> mkvirtualenv -p /usr/bin/python3 --system-site-packages ris-scraper
+    >>> pip install -r requirements.txt
 
 ## Anwendung
 

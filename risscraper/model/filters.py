@@ -46,7 +46,7 @@ def datestring_to_datetime(inp):
     """ Convert a date/time string do proper start (and optionally end) datetime
     """
     berlin = timezone('Europe/Berlin')
-    if isinstance(inp, (str, unicode)):
+    if isinstance(inp, str):
         string = inp.strip()
         fmt = ('{day:d}.{month:d}.{year:d} '
                '{hour:d}:{minute:d}-{hourend:d}:{minuteend:d}')

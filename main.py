@@ -172,7 +172,7 @@ def main():
 
     # erase db
     if options.erase_db:
-        print "Erasing database"
+        print("Erasing database")
         db.erase()
 
     if options.start_month:

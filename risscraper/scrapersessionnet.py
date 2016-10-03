@@ -235,12 +235,12 @@ class ScraperSessionNet(object):
         trs = dom.xpath(self.xpath['COMMITTEE_LINES'])
         for tr in trs:
             tds = tr.xpath('.//td')
-            print tds
+            print(tds)
             if tr.get('class') == 'smcrowh':
-                print tds[0].text
+                print(tds[0].text)
             else:
                 for td in tds:
-                    print td[0].text
+                    print(td[0].text)
         return
     """
 
@@ -572,8 +572,8 @@ class ScraperSessionNet(object):
                         parsed = parse.search(
                             self.urls['PAPER_DETAIL_PARSE_PATTERN'], href)
                         if parsed is not None:
-                            original_id = (unicode(agendaitem.originalId)
-                                           + unicode(parsed['paper_id']))
+                            original_id = '%s%s' % (agendaitem.originalId,
+                                                    parsed['paper_id'])
                             consultation = Consultation(originalId=original_id)
                             # TODO: da stehen ab und an Zusatzinfos drin.
                             #       Wohin damit?
@@ -773,7 +773,7 @@ class ScraperSessionNet(object):
             time.sleep(self.config['scraper']['wait_time'])
             try:
                 response = self.user_agent.open(paper_url)
-            except urllib2.HTTPError, e:
+            except urllib2.HTTPError as e:
                 if e.code == 404:
                     sys.stderr.write("URL not found (HTTP 404) error "
                                      "caught: %s\n" % paper_url)
@@ -1100,7 +1100,7 @@ class ScraperSessionNet(object):
             try:
                 response = self.user_agent.open(url)
                 return response
-            except urllib2.HTTPError, e:
+            except urllib2.HTTPError as e:
                 if e.code in (500, 502):
                     retry_counter = retry_counter + 1
                     retry = True
