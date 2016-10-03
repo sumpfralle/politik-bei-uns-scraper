@@ -30,6 +30,7 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
+import codecs
 from copy import deepcopy
 import datetime
 from hashlib import md5
@@ -506,12 +507,18 @@ class MongoDatabase(object):
         return oid
 
     def slugify(self, identifier):
-        identifier = str(identifier)
+        # Python2/3 compatibility: "basestring" is available in python2 only
+        try:
+            basestring
+        except NameError:
+            basestring = str
+        if not isinstance(identifier, basestring):
+            identifier = str(identifier)
         identifier = identifier.replace('/', '-')
         identifier = identifier.replace(' ', '-')
         result = []
         for word in self.slugify_re.split(identifier.lower()):
-            word = word.encode('translit/long')
+            word = codecs.encode(word, 'translit/long')
             if word:
                 result.append(word)
         return '-'.join(result)

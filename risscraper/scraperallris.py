@@ -59,6 +59,54 @@ except ImportError:
         def add_headers(self, headers):
             pass
 
+RequestResult = collections.namedtuple("RequestResult", ("content", "real_url", "redirected", "requires_auth"))
+
+try:
+    import urllib.request
+    import urllib.error
+    class url_opener:
+        def __init__(self):
+            # "FancyURLopener" handles redirects automatically
+            self._opener = urllib.request.FancyURLopener()
+        def addheaders(self, *args):
+            self._opener.addheaders(*args)
+        def get_content(self, url, post_data=None, binary=False):
+            data = urllib.parse.urlencode(post_data) if post_data else None
+            with self._opener.open(url, data=data) as conn:
+                content = conn.read()
+                real_url = conn.geturl()
+                redirected = real_url != url
+                requires_auth = "noauth" in real_url
+                # We can (and should) ignore "binary" (and never decode the
+                # bytes), since lxml will take care for the encoding anyway.
+                return RequestResult(content, real_url, redirected, requires_auth)
+except ImportError:
+    # Python2 compatibility
+    import requests.exceptions
+    import requests
+    class url_opener:
+        def addheaders(self, *args):
+            pass
+        def get_content(self, url, post_data=None, binary=False):
+            try:
+                if post_data is None:
+                    response = requests.get(url)
+                else:
+                    response = requests.post(url, data=post_data)
+            except requests.exceptions.ConnectionError:
+                raise
+            if response.history:
+                redirected = True
+                real_url = response.history[0].url
+            else:
+                redirected = False
+                real_url = url
+            requires_auth = "noauth" in response.url
+            content = response.text
+            if not binary:
+                content = content.encode("ascii", "xmlcharrefreplace")
+            return RequestResult(content, real_url, redirected, requires_auth)
+
 from lxml import etree, html
 from lxml.cssselect import CSSSelector
 import magic
@@ -78,7 +126,7 @@ import risscraper.queue
 class ScraperAllRis(object):
 
     # find everything inside a body of a subdocument
-    body_re = re.compile("<?xml .*<body[ ]*>(.*)</body>")
+    body_re = re.compile(b"<?xml .*<body[ ]*>(.*)</body>")
     # marker for no date being found
     TIME_MARKER = datetime.datetime(1903, 1, 1)
 
@@ -109,7 +157,7 @@ class ScraperAllRis(object):
         # database object
         self.db = db
         # prepare URL retriever
-        self.url_opener = build_url_opener()
+        self.url_opener = url_opener()
         self.url_opener.addheaders = [
             ('User-agent', config['scraper']['user_agent_name'])]
 
@@ -165,11 +213,10 @@ class ScraperAllRis(object):
 
         """parse an XML file and return the tree"""
         parser = etree.XMLParser(recover=True)
-        r = self.get_url(find_person_url)
-        if not r:
+        response = self.get_url(find_person_url)
+        if not response:
             return
-        xml = r.encode('ascii', 'xmlcharrefreplace')
-        tree = etree.fromstring(xml, parser=parser)
+        tree = etree.fromstring(response.content, parser=parser)
         h = html_parser.HTMLParser()
 
         # element 0 is the special block
@@ -256,12 +303,12 @@ class ScraperAllRis(object):
         parser = etree.XMLParser(recover=True)
         h = html_parser.HTMLParser()
 
-        r = self.get_url(meeting_find_url)
-        if not r:
+        response = self.get_url(meeting_find_url)
+        if not response:
             return
-
-        xml = r.encode('ascii', 'xmlcharrefreplace').replace('</a>', '')
-        xml = re.sub(r'<a href="([^"]*)" target="_blank" ?>', r'\1', xml)
+        xml = response.content
+        xml = re.sub(b'</a>', '', xml)
+        xml = re.sub(b'<a href="([^"]*)" target="_blank" ?>', br'\1', xml)
         root = etree.fromstring(xml, parser=parser)
         for item in root:
             if item.tag == 'list':
@@ -326,11 +373,9 @@ class ScraperAllRis(object):
         while True:
             try:
                 response = self.get_url(url)
-                # TODO: what is the purpose of this check?
-                if not url:
+                if not response:
                     return
-                text = response.encode('ascii', 'xmlcharrefreplace')
-                tree = html.fromstring(text)
+                tree = html.fromstring(response.content)
 
                 memberships = []
                 person = Person(originalId=person_id)
@@ -503,23 +548,23 @@ class ScraperAllRis(object):
 
         logging.info("Getting meeting %d from %s", meeting_id, meeting_url)
 
-        r = self.get_url(meeting_url)
-        if not r:
+        response = self.get_url(meeting_url)
+        if not response:
             return
         # If r.history has an item we have a problem
-        # TODO: handle a redirect
-        if len(r.history):
-            if r.history[0].status_code == 302:
+        if response.redirected:
+            # TODO: verify that status=302 implies "requires_auth"
+            #if r.history[0].status_code == 302:
+            if response.requires_auth:
                 logging.info("Meeting %d from %s seems to be private",
                              meeting_id, meeting_id)
             else:
-                logging.error("Strange redirect %d from %s with status code %s",
-                              meeting_id, meeting_url, r.history[0].status_code)
+                logging.error("Strange redirect %d from %s",
+                              meeting_id, meeting_url)
             return
         h = html_parser.HTMLParser()
-        xml = str(r.encode('ascii', 'xmlcharrefreplace'))
         parser = etree.XMLParser(recover=True)
-        root = etree.fromstring(xml, parser=parser)
+        root = etree.fromstring(response.content, parser=parser)
 
         meeting = Meeting(originalId=meeting_id)
 
@@ -573,13 +618,11 @@ class ScraperAllRis(object):
             if not agendaitem_r:
                 return
 
-            # TODO: handle redirects
-            if len(agendaitem_r.history):
+            if agendaitem_r.redirected:
                 logging.info("Agenda item %d from %s seems to be private",
                              meeting_id, meeting_url)
             else:
-                agendaitem_xml = agendaitem_r.encode('ascii',
-                                                     'xmlcharrefreplace')
+                agendaitem_xml = agendaitem_r.content
                 # TODO: mixup of agendaitem_parser / parser below?
                 agendaitem_parser = etree.XMLParser(recover=True)
                 agendaitem_root = etree.fromstring(agendaitem_xml,
@@ -645,13 +688,11 @@ class ScraperAllRis(object):
                 response = self.get_url(paper_url)
                 if not response:
                     return
-                # TODO: handle redirects
-                if "noauth" in response.url:
+                if response.requires_auth:
                     logging.warn("Paper %s in %s seems to private",
                                  paper_id, paper_url)
                     return
-                text = response.encode('ascii', 'xmlcharrefreplace')
-                doc = html.fromstring(text)
+                doc = html.fromstring(response.content)
                 data = {}
 
                 # Beratungsfolge-Table checken
@@ -839,7 +880,7 @@ class ScraperAllRis(object):
                     # actually).
                 # The actual text comes after the table in a div but it's not
                 # valid XML or HTML this using regex.
-                data['docs'] = self.body_re.findall(response.text)
+                data['docs'] = self.body_re.findall(response.content)
                 first_date = False
                 for single_date in date_list:
                     if first_date:
@@ -917,14 +958,13 @@ class ScraperAllRis(object):
         logging.info("Getting file %s from %s", file_obj.originalId, file_url)
 
         if post:
-            file_file = self.get_url(file_url, post_data={
-                'DOLFDNR': file_obj.originalId, 'options': '64'})
-        else:
-            file_file = self.get_url(file_url)
-            if not file_obj:
-                logging.error("Error downloading file %s", file_url)
-                return file_obj
-        file_obj.content = file_file.content
+            file_response = self.get_url(file_url, post_data={
+                'DOLFDNR': file_obj.originalId, 'options': '64'}, binary=True)
+        file_response = self.get_url(file_url, binary=True)
+        if not file_response:
+            logging.error("Error downloading file %s", file_url)
+            return file_obj
+        file_obj.content = file_response.content
         # catch strange magic exception
         try:
             file_obj.mimetype = magic.from_buffer(file_obj.content, mime=True)
@@ -952,24 +992,25 @@ class ScraperAllRis(object):
                          "file id %s", file_obj.mimetype, file_obj.originalId)
         return name + '.' + ext
 
-    def get_url(self, url, post_data=None):
+    def get_url(self, url, post_data=None, binary=False):
         retry_counter = 0
         while retry_counter < 4:
             retry = False
             try:
                 # urllib will create a POST request if "data" is not None
-                return self.url_opener.open(url, data=post_data)
-            except http_exception:
+                return self.url_opener.get_content(
+                    url, post_data=post_data, binary=binary)
+            except IOError as exc:
                 retry_counter += 1
                 retry = True
-                logging.info("Connection Reset while getting %s, try again",
-                             url)
+                logging.warning("Connection Reset (%s) while getting %s, "
+                                "trying again", exc, url)
                 time.sleep(self.config['scraper']['wait_time'] * 5)
         if retry_counter == 4 and retry:
             logging.critical("HTTP Error while getting %s", url)
-            sys.stderr.write("CRITICAL ERROR: HTTP Error while getting %s"
+            sys.stderr.write("CRITICAL ERROR: HTTP Error while getting %s\n"
                              % url)
-            return False
+            return None
 
     # mrtopf
     def parse_date(self, s):

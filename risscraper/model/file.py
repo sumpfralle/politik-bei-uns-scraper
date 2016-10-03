@@ -89,4 +89,6 @@ class File(Base):
             self.sha1Checksum = None
         else:
             self.size = len(value)
+            if not isinstance(value, bytes):
+                value = value.encode("utf-8")
             self.sha1Checksum = hashlib.sha1(value).hexdigest()
