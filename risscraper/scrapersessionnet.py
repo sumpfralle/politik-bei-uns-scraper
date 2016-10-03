@@ -32,7 +32,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
 import logging
-from StringIO import StringIO
+try:
+    from io import StringIO
+except ImportError:
+    # Python2 compatibility
+    from StringIO import StringIO
 import time
 import sys
 
