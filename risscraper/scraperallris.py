@@ -145,12 +145,8 @@ class ScraperAllRis(object):
         logging.info("Nothing to guess until now.")
 
     def find_person(self):
-        find_person_url = (self.config['scraper']['base_url'] +
-                           'kp041.asp?template=xyz&selfaction=ws&showAll=true&'
-                           'PALFDNRM=1&kpdatfil=&filtdatum=filter&kpname=&'
-                           'kpsonst=&kpampa=99999999&kpfr=99999999&'
-                           'kpamfr=99999999&kpau=99999999&kpamau=99999999&'
-                           'searchForm=true&search=Suchen')
+        # example: https://ksd.rostock.de/bi/kp041.asp?selfaction=ws
+        find_person_url = self.config['scraper']['base_url'] + 'kp041.asp?selfaction=ws'
         logging.info("Getting person overview from %s", find_person_url)
 
         """parse an XML file and return the tree"""
