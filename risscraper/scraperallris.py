@@ -326,7 +326,16 @@ class ScraperAllRis(object):
                 old_group_name = None
                 # might break otherwise
                 group_id = None
-                table = tree.xpath('//*[@id="rismain_raw"]/table[2]')
+                # Different versions contain different "main" divs:
+                #   Rostock (ALLRIS net Version 3.8.8): "rismain"
+                #   others: "rismain_raw"
+                for key in ("rismain_raw", "rismain"):
+                    # There are three tables on this page:
+                    #    Anschrift, Sonstiges, Mitarbeit
+                    # We are interested in "Mitarbeit".
+                    table = tree.xpath('//*[@id="%s"]/table[2]' % key)
+                    if table:
+                        break
                 if len(table):
                     table = table[0]
                     for line in table.findall("tr"):
