@@ -724,7 +724,7 @@ class ScraperSessionNet(object):
                                             file_obj = self.get_file(file_obj,
                                                                      mform)
                                 if 'Einladung' in name:
-                                    invitations.append(file)
+                                    invitations.append(file_obj)
                                 elif 'Niederschrift' in name:
                                     if resultsProtocol:
                                         logging.warn('Two resultsProtocols '
