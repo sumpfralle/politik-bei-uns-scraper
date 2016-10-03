@@ -323,15 +323,6 @@ class ScraperAllRis(object):
                 memberships = []
                 person = Person(originalId=person_id)
 
-                # obtain the table with the membership list via a simple state machine
-                mtype = "parliament"
-                field = 'PALFDNR'
-                # for checking if it changes
-                old_group_id = None
-                # for checking if it changes
-                old_group_name = None
-                # might break otherwise
-                group_id = None
                 # Different versions contain different "main" divs:
                 #   Rostock (ALLRIS net Version 3.8.8): "rismain"
                 #   others: "rismain_raw"
@@ -342,8 +333,17 @@ class ScraperAllRis(object):
                     table = tree.xpath('//*[@id="%s"]/table[2]' % key)
                     if table:
                         break
-                if len(table):
+                # obtain the table with the membership list via a simple state machine
+                if table:
                     table = table[0]
+                    mtype = None
+                    field = None
+                    # for checking if it changes
+                    old_group_id = None
+                    # for checking if it changes
+                    old_group_name = None
+                    # might break otherwise
+                    group_id = None
                     for line in table.findall("tr"):
                         if line[0].tag == "th":
                             # This is a subtitle for the following memberships.
@@ -366,8 +366,23 @@ class ScraperAllRis(object):
                                               what, person_id)
                                 continue
                         else:
+                            """
+                            This is a membership description consisting of
+                            organization icon, organization name, role and
+                            timespan.
+                            Example:
+                                <tr><td><form action="au020.asp" method="post" style="margin:0">
+                                        <input name="AULFDNR" value="157" type="hidden">
+                                        <input name="altoption" value="Ausschuss" type="hidden">
+                                        <input class="il1_au" value="AU" title="Ausschuss" type="submit"></form></td>
+                                    <td class="text1"><a href="au020.asp?AULFDNR=157&amp;altoption=Ausschuss">
+                                        Ausschuss für Stadt- und Regionalentwicklung, Umwelt und Ordnung</a></td>
+                                    <td class="text4">Mitglied&nbsp;</td>
+                                    <td class="text4">14.07.1999 - 13.12.1999</td><td>&nbsp;</td></tr>
+                            """
                             if "Keine Information" in line.text_content():
                                 # skip because no content is available
+                                # Typically "Fraktion" is undefined.
                                 continue
 
                             # Empty line = strange stuff comes after this
@@ -421,25 +436,28 @@ class ScraperAllRis(object):
                             membership.originalId = (unicode(person_id) + '-'
                                                      + unicode(group_id))
 
-                            # TODO: create a list of functions so we can
+                            # TODO: create a list of roles so we can
                             #       index them somehow
-                            function = line[2].text_content()
+                            role = line[2].text_content()
                             raw_date = line[3].text_content()
                             # parse the date information
                             if "seit" in raw_date:
+                                # Example: "seit 02.07.2014"
                                 dparts = raw_date.split()
                                 membership.endDate = dparts[-1]
                             elif "Keine" in raw_date or not raw_date.strip():
                                 # no date information available
                                 start_date = end_date = None
                             else:
+                                # Example: "14.07.1999 - 13.12.1999"
                                 dparts = raw_date.split()
                                 membership.startDate = dparts[0]
                                 membership.endDate = dparts[-1]
                             if organization.originalId is not None:
                                 memberships.append(membership)
                             else:
-                                logging.warn("Bad organization at %s", url)
+                                logging.warn("Bad organization (%s): %s",
+                                             url, line.text_content())
 
                     person.membership = memberships
                     oid = self.db.save_person(person)
