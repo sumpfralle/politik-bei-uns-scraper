@@ -33,7 +33,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import collections
 import datetime
-import HTMLParser
+try:
+    import html.parser as html_parser
+except ImportError:
+    # Python2 compatibility
+    import HTMLParser as html_parser
 import logging
 import re
 import sys
@@ -155,7 +159,7 @@ class ScraperAllRis(object):
             return
         xml = r.text.encode('ascii', 'xmlcharrefreplace')
         tree = etree.fromstring(xml, parser=parser)
-        h = HTMLParser.HTMLParser()
+        h = html_parser.HTMLParser()
 
         # element 0 is the special block
         # element 1 is the list of persons
@@ -239,7 +243,7 @@ class ScraperAllRis(object):
         logging.info("Getting meeting overview from %s", meeting_find_url)
 
         parser = etree.XMLParser(recover=True)
-        h = HTMLParser.HTMLParser()
+        h = html_parser.HTMLParser()
 
         r = self.get_url(meeting_find_url)
         if not r:
@@ -499,7 +503,7 @@ class ScraperAllRis(object):
                 logging.error("Strange redirect %d from %s with status code %s",
                               meeting_id, meeting_url, r.history[0].status_code)
             return
-        h = HTMLParser.HTMLParser()
+        h = html_parser.HTMLParser()
         xml = str(r.text.encode('ascii', 'xmlcharrefreplace'))
         parser = etree.XMLParser(recover=True)
         root = etree.fromstring(xml, parser=parser)
