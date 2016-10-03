@@ -50,13 +50,22 @@ CMD_SUBFOLDER = os.path.realpath(os.path.abspath(os.path.join(os.path.split(
 if CMD_SUBFOLDER not in sys.path:
     sys.path.insert(0, CMD_SUBFOLDER)
 
+LOG_LEVEL_MAP = {
+    'DEBUG': logging.DEBUG,
+    'INFO': logging.INFO,
+    'WARNING': logging.WARNING,
+    'ERROR': logging.ERROR,
+    'CRITICAL': logging.CRITICAL
+}
+
 
 def main():
     parser = argparse.ArgumentParser(
         description='Scrape Dein Ratsinformationssystem')
     parser.add_argument('--body', '-b', dest='body_uid', required=True,
                         help=("UID of the body"))
-    parser.add_argument('--interactive', '-i', default=0, dest="interactive",
+    parser.add_argument('--interactive', '-i', dest="interactive_log_level",
+                        default=None, choices=LOG_LEVEL_MAP.keys(),
                         help=("Interactive mode: brings messages above given "
                               "level to stdout"))
     parser.add_argument('--queue', '-q', dest="workfromqueue",
@@ -126,18 +135,12 @@ def main():
         logfile = '%s/%s-%s.log' % (config['scraper']['log_base_dir'],
                                     config['city']['_id'],
                                     now.strftime('%Y%m%d-%H%M'))
-    levels = {
-        'DEBUG': logging.DEBUG,
-        'INFO': logging.INFO,
-        'WARNING': logging.WARNING,
-        'ERROR': logging.ERROR,
-        'CRITICAL': logging.CRITICAL
-    }
-    loglevel = 'INFO'
     if config['scraper']['log_level'] is not None:
         loglevel = config['scraper']['log_level']
+    else:
+        loglevel = 'INFO'
     logging.basicConfig(
-        filename=logfile, level=levels[loglevel],
+        filename=logfile, level=LOG_LEVEL_MAP[loglevel],
         format='%(asctime)s %(name)s %(levelname)s %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S')
 
@@ -146,10 +149,10 @@ def main():
     requests_log.setLevel(logging.WARNING)
 
     # interactive logging
-    if options.interactive in levels:
+    if options.interactive_log_level:
         root = logging.getLogger()
         ch = logging.StreamHandler(sys.stdout)
-        ch.setLevel(levels[options.interactive])
+        ch.setLevel(LOG_LEVEL_MAP[options.interactive_log_level])
         formatter = logging.Formatter('%(levelname)s: %(message)s')
         ch.setFormatter(formatter)
         root.addHandler(ch)
