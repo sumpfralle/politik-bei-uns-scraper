@@ -30,8 +30,8 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
-from base import Base
-import filters
+from risscraper.model.base import Base
+import risscraper.model.filters as filters
 
 
 class Meeting(Base):

@@ -46,15 +46,15 @@ import mechanize
 from pytz import timezone
 import requests
 
-from model.person import Person
-from model.membership import Membership
-from model.organization import Organization
-from model.meeting import Meeting
-from model.consultation import Consultation
-from model.paper import Paper
-from model.agendaitem import AgendaItem
-from model.file import File
-import queue
+from risscraper.model.person import Person
+from risscraper.model.membership import Membership
+from risscraper.model.organization import Organization
+from risscraper.model.meeting import Meeting
+from risscraper.model.consultation import Consultation
+from risscraper.model.paper import Paper
+from risscraper.model.agendaitem import AgendaItem
+from risscraper.model.file import File
+import risscraper.queue
 
 
 class ScraperAllRis(object):
@@ -96,9 +96,9 @@ class ScraperAllRis(object):
         self.user_agent.addheaders = [('User-agent', config['scraper']['user_agent_name'])]
         # Queues
         if self.options.workfromqueue:
-            self.person_queue = queue.Queue('ALLRIS_PERSON', config, db)
-            self.meeting_queue = queue.Queue('ALLRIS_MEETING', config, db)
-            self.paper_queue = queue.Queue('ALLRIS_PAPER', config, db)
+            self.person_queue = risscraper.queue.Queue('ALLRIS_PERSON', config, db)
+            self.meeting_queue = risscraper.queue.Queue('ALLRIS_MEETING', config, db)
+            self.paper_queue = risscraper.queue.Queue('ALLRIS_PAPER', config, db)
         # system info (PHP/ASP)
         self.template_system = None
         self.urls = None

@@ -32,7 +32,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import hashlib
 
-from base import Base
+from risscraper.model.base import Base
 
 
 class File(Base):
