@@ -1,5 +1,4 @@
 # encoding: utf-8
-
 """
 Copyright (c) 2012 - 2015, Marian Steinbach, Ernesto Ruge
 All rights reserved.

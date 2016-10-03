@@ -1,5 +1,3 @@
-# encoding: utf-8
-
 # Currently, only "mongodb" is supported
 DB_TYPE = 'mongodb'
 
