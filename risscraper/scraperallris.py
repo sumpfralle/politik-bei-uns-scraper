@@ -318,7 +318,8 @@ class ScraperAllRis(object):
                 response = self.get_url(url)
                 if not url:
                     return
-                tree = html.fromstring(response.text)
+                text = response.text.encode('ascii', 'xmlcharrefreplace')
+                tree = html.fromstring(text)
 
                 memberships = []
                 person = Person(originalId=person_id)
@@ -358,7 +359,7 @@ class ScraperAllRis(object):
                                 mtype = 'parliament'
                                 # 'FRLFDNR'
                                 field_list = ['KPLFDNR', 'AULFDNR']
-                            elif "Auskünfte gemäß BVV" in what:
+                            elif u"Auskünfte gemäß BVV" in what:
                                 break
                             else:
                                 logging.error("Unknown organization type %s "
@@ -635,7 +636,7 @@ class ScraperAllRis(object):
                     logging.warn("Paper %s in %s seems to private",
                                  paper_id, paper_url)
                     return
-                text = response.text
+                text = response.text.encode('ascii', 'xmlcharrefreplace')
                 doc = html.fromstring(text)
                 data = {}
 
