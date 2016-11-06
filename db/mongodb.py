@@ -37,7 +37,12 @@ from hashlib import md5
 import logging
 import re
 from uuid import uuid4
-import types
+
+try:
+    from types import DictType as dict_type
+except ImportError:
+    # for python3 we can use dict for instance tests
+    dict_type = dict
 
 from bson.dbref import DBRef
 from bson.objectid import ObjectId
@@ -550,6 +555,6 @@ class MongoDatabase(object):
         merged = dict(x, **y)
         xkeys = x.keys()
         for key in xkeys:
-            if isinstance(x[key], types.DictType) and y.has_key(key):
+            if isinstance(x[key], dict_type) and y.has_key(key):
                 merged[key] = self.merge_dict(x[key], y[key])
         return merged
