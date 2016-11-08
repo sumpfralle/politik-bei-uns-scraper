@@ -64,6 +64,7 @@ class MongoDatabase(object):
         self.base_config = base_config
         self.fs = gridfs.GridFS(self.db)
         self.slugify_re = re.compile(r'[\t !"#$%&\'()*\-/<=>?@\[\\\]^_`{|},.]+')
+        self._primary_key = "_id"
 
     def setup(self, config):
         """
@@ -119,10 +120,8 @@ class MongoDatabase(object):
 
     def get_config(self, body_uid):
         """ Returns Config JSON """
-        config = self.db.config.find_one()
-        if '_id' in config:
-            del config['_id']
-        local_config = self.db.body.find_one({'_id': ObjectId(body_uid)})
+        config = self.db.config.find_one(projection={self._primary_key: False})
+        local_config = self.db.body.find_one({self._primary_key: ObjectId(body_uid)})
         if 'config' in local_config:
             config = self.merge_dict(config, local_config['config'])
             del local_config['config']
